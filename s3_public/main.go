@@ -8,13 +8,13 @@ import(
 	"fmt"
 )
 
-// A Object is a representation of an s3 Object
+// An Object is a representation of a s3 Object
 type Object struct {
 	Name string
 	Size int64
 }
 
-// A Bucket is a representation of an S3 bucket
+// A Bucket is a representation of a S3 bucket
 type Bucket struct {
 	Name string
 	Objects []*Object
