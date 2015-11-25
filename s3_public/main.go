@@ -65,14 +65,13 @@ func BuildBucket(ses *session.Session, bucketName *string, region string) (*Buck
 				Size: *o.Size,
 			}
 			objectList <- file
-			errChan <- nil
 	
 			_ = aclResp
 		}(object)
 	}
 	
-	if err :=  <- errChan; err != nil {
-		return nil, err
+	if len(errChan) > 0 {
+		return nil, <- errChan
 	}
 	
 	for i := 0; i < len(loResp.Contents); i = i + 1 {
