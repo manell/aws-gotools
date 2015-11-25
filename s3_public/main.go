@@ -8,19 +8,79 @@ import(
 	"fmt"
 )
 
-func ListBucketFiles(svc *s3.S3, bucket *string, region string) (error) {
-	params := &s3.ListObjectsInput{
-		Bucket:	bucket,
-	}
+// A Object is a representation of an s3 Object
+type Object struct {
+	Name string
+	Size int64
+}
+
+// A Bucket is a representation of an S3 bucket
+type Bucket struct {
+	Name string
+	Objects []*Object
+}
+
+func BuildBucket(ses *session.Session, bucketName *string, region string) (*Bucket, error) {	
+	// We must create a new sessions for each different region
+	svc := s3.New(ses, aws.NewConfig().WithRegion(region))
 	
-	resp, err := svc.ListObjects(params)
+	// Get all objects inside the bucket
+	loParams := &s3.ListObjectsInput{
+		Bucket:	bucketName,
+	}
+
+	// 1000 objects 
+	loResp, err := svc.ListObjects(loParams)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	bucket := &Bucket{
+		Name: *bucketName,
 	}
 	
-	fmt.Println(resp.Marker)
+	if len(loResp.Contents) == 0 {
+		return bucket, nil
+	}
 	
-	return nil
+	// Channel for returning object values
+	objectList := make(chan *Object, len(loResp.Contents))
+	
+	// Channel for handling erros
+	errChan := make(chan error, 1)
+	
+	for _, object := range loResp.Contents {
+		go func(o *s3.Object){
+			goaParams := &s3.GetObjectAclInput{
+				Bucket:       bucketName,
+				Key:          o.Key,
+			}
+			aclResp, err := svc.GetObjectAcl(goaParams)
+			if err != nil {
+				errChan <- err
+			}
+			
+			file := &Object{
+				Name: *o.Key,
+				Size: *o.Size,
+			}
+			objectList <- file
+			errChan <- nil
+	
+			_ = aclResp
+		}(object)
+	}
+	
+	if err :=  <- errChan; err != nil {
+		return nil, err
+	}
+	
+	for i := 0; i < len(loResp.Contents); i = i + 1 {
+		fmt.Println(i)
+		bucket.Objects = append(bucket.Objects, <- objectList)
+	}
+	
+	return bucket, nil
 }
 
 func MapBucketByLocation(svc *s3.S3, buckets []*s3.Bucket) (map[string][]*string, error) {
@@ -35,9 +95,12 @@ func MapBucketByLocation(svc *s3.S3, buckets []*s3.Bucket) (map[string][]*string
 			return nil, err
 		}
 		
-		region := "US"
+		region := "us-east-1" //Use a map!
 		if resp.LocationConstraint != nil {
 			region = *resp.LocationConstraint
+			if region == "EU" {
+				region = "eu-west-1"
+			}
 		} 
 		result[region] = append(result[region], b.Name)
 	}
@@ -63,17 +126,16 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	
-	for k := range buckets {
-		fmt.Println(k)
-	}
-	
-	/*for i, b := range res.Buckets {
-		fmt.Println(i)
-		
-		if err := ListBucketFiles(svc, b.Name, awsRegion); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+
+	for region := range buckets {
+		fmt.Println(region)
+		for _, b := range buckets[region] {
+			fmt.Println(*b)
+			_, err := BuildBucket(ses, b, region);
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 		}
-	}*/
+	}
 }
