@@ -25,6 +25,19 @@ type Bucket struct {
 	Objects       []*Object
 	PublicObjects []*Object
 	Size          int64
+	Region 		  string
+}
+
+func (bucket *Bucket) Print() {
+	fmt.Println(fmt.Sprintf("Bucket name: %s", bucket.Name))
+	fmt.Println(fmt.Sprintf("Bucket region: %s", bucket.Region))
+	fmt.Println(fmt.Sprintf("Bucket size: %d", bucket.Size))
+	fmt.Println(fmt.Sprintf("Total objects: %d", len(bucket.Objects)))
+	fmt.Println(fmt.Sprintf("Public objects: %d", len(bucket.PublicObjects)))
+	
+	for _, obj := range bucket.PublicObjects {
+		fmt.Println(fmt.Sprintf("  %s", obj.Name))
+	}
 }
 
 func BuildBucket(ses *session.Session, bucketName *string, region string) (*Bucket, error) {
@@ -45,6 +58,7 @@ func BuildBucket(ses *session.Session, bucketName *string, region string) (*Buck
 	bucket := &Bucket{
 		Name: *bucketName,
 		Size: 0,
+		Region: region,
 	}
 
 	if len(loResp.Contents) == 0 {
@@ -149,6 +163,7 @@ func main() {
 	var totalSize int64
 	totalObjects := 0
 	totalPublicObjects := 0
+	
 	for region := range buckets {
 		for _, b := range buckets[region] {
 			bucket, err := BuildBucket(ses, b, region)
@@ -157,14 +172,7 @@ func main() {
 				os.Exit(1)
 			}
 
-			fmt.Println(fmt.Sprintf("Bucket name: %s", bucket.Name))
-			fmt.Println(fmt.Sprintf("Bucket region: %s", region))
-			fmt.Println(fmt.Sprintf("Bucket size: %d", bucket.Size))
-			fmt.Println(fmt.Sprintf("Total objects: %d", len(bucket.Objects)))
-			fmt.Println(fmt.Sprintf("Public objects: %d", len(bucket.PublicObjects)))
-			for _, obj := range bucket.PublicObjects {
-				fmt.Println(fmt.Sprintf("  %s", obj.Name))
-			}
+			bucket.Print()
 			fmt.Println()
 			
 			totalSize += bucket.Size
