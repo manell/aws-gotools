@@ -18,6 +18,7 @@ type Object struct {
 type Bucket struct {
 	Name string
 	Objects []*Object
+	Size int64
 }
 
 func BuildBucket(ses *session.Session, bucketName *string, region string) (*Bucket, error) {	
@@ -75,8 +76,9 @@ func BuildBucket(ses *session.Session, bucketName *string, region string) (*Buck
 	}
 	
 	for i := 0; i < len(loResp.Contents); i = i + 1 {
-		fmt.Println(i)
-		bucket.Objects = append(bucket.Objects, <- objectList)
+		obj := <- objectList
+		bucket.Size += obj.Size
+		bucket.Objects = append(bucket.Objects, obj)
 	}
 	
 	return bucket, nil
@@ -129,12 +131,15 @@ func main() {
 	for region := range buckets {
 		fmt.Println(region)
 		for _, b := range buckets[region] {
-			fmt.Println(*b)
-			_, err := BuildBucket(ses, b, region);
+			bucket, err := BuildBucket(ses, b, region);
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
+			
+			fmt.Println(bucket.Name)
+			//fmt.Println(len(bucket.Objects))
+			fmt.Println(bucket.Size)
 		}
 	}
 }
