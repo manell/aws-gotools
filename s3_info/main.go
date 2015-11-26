@@ -54,7 +54,7 @@ func BuildBucket(ses *session.Session, bucketName *string, region string) (*Buck
 	// Channel for returning object values
 	objectList := make(chan *Object, len(loResp.Contents))
 
-	// Channel for handling erros
+	// Channel for handling errors
 	errChan := make(chan error, 1)
 
 	for _, object := range loResp.Contents {
